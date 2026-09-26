@@ -1,0 +1,14 @@
+@import "tailwindcss";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/merriweather";
+
+@theme {
+  --font-sans: "Geist Variable", sans-serif;
+  --font-heading: "Merriweather Variable", serif;
+}
+
+@layer base {
+  html {
+    @apply font-sans;
+  }
+}
