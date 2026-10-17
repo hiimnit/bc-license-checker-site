@@ -9,19 +9,46 @@ import { For, Match, Show, Switch, type Component } from "solid-js";
 import * as z from "zod";
 import { saveAs } from "file-saver";
 
-async function readFileAsBase64(files: FileList | null) {
+async function readFile(files: FileList | null) {
   if (files == null || files.length === 0) {
     return null;
   }
 
-  const encoded = await new Promise<ArrayBuffer>((resolve, reject) => {
+  return await new Promise<ArrayBuffer>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as ArrayBuffer);
     reader.onerror = (error) => reject(error);
     reader.readAsArrayBuffer(files[0]);
   });
+}
+async function readFileAsBase64(files: FileList | null) {
+  const encoded = await readFile(files);
+  if (encoded === null) {
+    return null;
+  }
 
   return new Uint8Array(encoded).toBase64();
+}
+async function readAndTrimLicenseFileAsBase64(files: FileList | null) {
+  const encoded = await readFile(files);
+  if (encoded === null) {
+    return null;
+  }
+
+  return trimLicenseFile(encoded).toBase64();
+}
+
+function trimLicenseFile(encoded: ArrayBuffer) {
+  const decoder = new TextDecoder("windows-1252");
+  const decodedText = decoder.decode(encoded);
+  const encoder = new TextEncoder();
+
+  const sentinel = "Module Objects and Permissions";
+  const i = decodedText.indexOf(sentinel);
+  if (i < 0) {
+    return encoder.encode(decodedText);
+  }
+  return encoder.encode(decodedText.substring(0, i + sentinel.length));
 }
 
 const objectSchema = z.object({
@@ -53,7 +80,7 @@ const App: Component = () => {
         method: "POST",
         body: JSON.stringify({
           objects: await readFileAsBase64(objectsFile.files),
-          license: await readFileAsBase64(licenseFile.files),
+          license: await readAndTrimLicenseFileAsBase64(licenseFile.files),
         }),
       });
       if (!res.ok) {

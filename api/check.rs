@@ -1,9 +1,7 @@
 use base64::{Engine, prelude::BASE64_STANDARD};
-use encoding_rs::WINDOWS_1252;
-use encoding_rs_io::DecodeReaderBytesBuilder;
 use http_body_util::BodyExt;
 use serde::Deserialize;
-use std::io::{BufReader, Cursor, Read};
+use std::io::Cursor;
 
 use serde_json::{Value, json};
 use vercel_runtime::{Error, Request, run, service_fn};
@@ -20,21 +18,10 @@ struct CheckRequest {
     license: Option<String>,
 }
 
-fn read_from_base64_with_encoding(
-    encoded: String,
-    encoding: &'static encoding_rs::Encoding,
-) -> Result<String, Error> {
+fn read_from_base64(encoded: String) -> Result<String, Error> {
     let decoded = BASE64_STANDARD.decode(encoded)?;
 
-    let transcoded = DecodeReaderBytesBuilder::new()
-        .encoding(Some(encoding))
-        .build(&decoded[..]);
-    let mut reader = BufReader::new(transcoded);
-
-    let mut result = String::new();
-    reader.read_to_string(&mut result)?;
-
-    Ok(result)
+    Ok(String::from_utf8(decoded)?)
 }
 
 async fn handler(req: Request) -> Result<Value, Error> {
@@ -42,7 +29,7 @@ async fn handler(req: Request) -> Result<Value, Error> {
     let req: CheckRequest = serde_json::from_slice(&bytes)?;
 
     let license = match req.license {
-        Some(license) => Some(read_from_base64_with_encoding(license, WINDOWS_1252)?),
+        Some(license) => Some(read_from_base64(license)?),
         None => None,
     };
 
